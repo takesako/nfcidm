@@ -1,0 +1,22 @@
+class Nfcidm < Formula
+  desc "Read a FeliCa IDm with native macOS USB and PC/SC APIs"
+  homepage "@HOMEPAGE@"
+  url "@URL@"
+  version "@VERSION@"
+  sha256 "@SHA256@"
+  license "MIT"
+
+  depends_on arch: :arm64
+  depends_on macos: :sequoia
+
+  def install
+    system "make", "CC=#{ENV.cc}", "test"
+    system "make", "CC=#{ENV.cc}"
+    bin.install "nfcidm"
+  end
+
+  test do
+    assert_equal "nfcidm #{version}\n", shell_output("#{bin}/nfcidm --version")
+    assert_match "Usage: nfcidm", shell_output("#{bin}/nfcidm --help")
+  end
+end
