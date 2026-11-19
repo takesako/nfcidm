@@ -58,18 +58,6 @@ RC-S320, RC-S330, RC-S380, and ACR122U have been tested with physical readers on
 
 See [protocol details](docs/protocol.md) for USB commands, framing, FeliCa polling, PC/SC handling, and references.
 
-## Release
-
-Create a source archive with `make dist` and upload `dist/nfcidm-0.5.2.tar.gz` to a GitHub Release tagged `v0.5.2`. To publish a Homebrew formula in a separate tap, generate it with:
-
-```sh
-sh scripts/formula.sh dist/nfcidm-0.5.2.tar.gz \
-  https://github.com/OWNER/nfcidm/releases/download/v0.5.2/nfcidm-0.5.2.tar.gz \
-  https://github.com/OWNER/nfcidm > nfcidm.rb
-```
-
-Replace `OWNER` with the GitHub account before publishing.
-
 ## License
 
 MIT. See [LICENSE](LICENSE).
