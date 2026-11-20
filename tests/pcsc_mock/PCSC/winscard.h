@@ -6,8 +6,6 @@
 #define NFCIDM_TEST_WINSCARD_H
 #include <stdint.h>
 
-typedef int32_t LONG;
-typedef uint32_t DWORD;
 typedef int32_t SCARDCONTEXT;
 typedef int32_t SCARDHANDLE;
 #define MAX_ATR_SIZE 33

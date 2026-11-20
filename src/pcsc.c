@@ -9,7 +9,7 @@
 #include <string.h>
 
 /* One PC/SC implementation for Apple PCSC, Windows WinSCard and pcsc-lite.
- * Keep the ABI-defined LONG/DWORD types and use explicit ANSI APIs on Windows.
+ * Use platform-specific PC/SC ABI types from pcsc_compat.h.
  */
 struct nfc_pcsc {
     SCARDCONTEXT context;
@@ -39,7 +39,7 @@ static const char *error_description(uint32_t code)
     }
 }
 
-static int pcsc_failure(const char *operation, LONG result,
+static int pcsc_failure(const char *operation, nfc_pcsc_result_t result,
                         char *error, size_t error_cap)
 {
     uint32_t code = (uint32_t)result;
@@ -63,9 +63,9 @@ int nfc_pcsc_enumerate(nfc_reader *readers, size_t capacity, size_t *count,
 {
     SCARDCONTEXT context;
     char *names = NULL;
-    DWORD names_length = 0;
-    DWORD allocated = 0;
-    LONG result;
+    nfc_pcsc_dword_t names_length = 0;
+    nfc_pcsc_dword_t allocated = 0;
+    nfc_pcsc_result_t result;
     size_t start_count, offset;
     int attempt, status = NFC_OK;
 
@@ -179,7 +179,7 @@ int nfc_pcsc_open(const nfc_reader *reader, bool verbose, nfc_pcsc **out,
                   char *error, size_t error_cap)
 {
     nfc_pcsc *pcsc;
-    LONG result;
+    nfc_pcsc_result_t result;
 
     if (out == NULL) {
         nfc_error(error, error_cap, "Invalid PC/SC output handle");
@@ -230,12 +230,12 @@ int nfc_pcsc_poll(nfc_pcsc *pcsc, uint8_t idm[8], unsigned timeout_ms,
     LPCSCARD_IO_REQUEST pci;
     char returned_name[NFCIDM_NAME_SIZE + 2];
     uint8_t atr[NFCIDM_PCSC_ATR_BUFFER_SIZE], response[258], value[8];
-    DWORD protocol = 0, card_state = 0;
-    DWORD name_length = (DWORD)sizeof(returned_name), atr_length = (DWORD)sizeof(atr);
-    DWORD response_length = (DWORD)sizeof(response);
-    DWORD wait_ms = (DWORD)timeout_ms;
-    DWORD events;
-    LONG result;
+    nfc_pcsc_dword_t protocol = 0, card_state = 0;
+    nfc_pcsc_dword_t name_length = (nfc_pcsc_dword_t)sizeof(returned_name), atr_length = (nfc_pcsc_dword_t)sizeof(atr);
+    nfc_pcsc_dword_t response_length = (nfc_pcsc_dword_t)sizeof(response);
+    nfc_pcsc_dword_t wait_ms = (nfc_pcsc_dword_t)timeout_ms;
+    nfc_pcsc_dword_t events;
+    nfc_pcsc_result_t result;
     int status = NFC_ERR;
 
     if (pcsc == NULL || idm == NULL) {
@@ -246,7 +246,7 @@ int nfc_pcsc_poll(nfc_pcsc *pcsc, uint8_t idm[8], unsigned timeout_ms,
         return NFC_CANCELLED;
 
     /* No infinite PC/SC card wait; main owns the overall deadline and Ctrl-C. */
-    if (wait_ms == (DWORD)0xffffffffUL)
+    if (wait_ms == (nfc_pcsc_dword_t)0xffffffffUL)
         wait_ms--;
     result = nfc_scard_get_status_change(pcsc->context, wait_ms,
                                   &pcsc->state, 1);
@@ -258,7 +258,7 @@ int nfc_pcsc_poll(nfc_pcsc *pcsc, uint8_t idm[8], unsigned timeout_ms,
         return pcsc_failure("SCardGetStatusChange", result, error, error_cap);
 
     events = pcsc->state.dwEventState;
-    pcsc->state.dwCurrentState = events & ~(DWORD)SCARD_STATE_CHANGED;
+    pcsc->state.dwCurrentState = events & ~(nfc_pcsc_dword_t)SCARD_STATE_CHANGED;
     if ((events & (SCARD_STATE_UNKNOWN | SCARD_STATE_UNAVAILABLE)) != 0) {
         nfc_error(error, error_cap, "The PC/SC NFC reader was disconnected");
         return NFC_GONE;
@@ -316,7 +316,7 @@ int nfc_pcsc_poll(nfc_pcsc *pcsc, uint8_t idm[8], unsigned timeout_ms,
     /* SCardTransmit itself has no per-call timeout. The CLI's watchdog bounds
      * a stalled system driver; SCardCancel cannot cancel this operation.
      */
-    result = SCardTransmit(card, pci, get_idm, (DWORD)sizeof(get_idm), NULL,
+    result = SCardTransmit(card, pci, get_idm, (nfc_pcsc_dword_t)sizeof(get_idm), NULL,
                             response, &response_length);
     if ((uint32_t)result != (uint32_t)SCARD_S_SUCCESS) {
         status = pcsc_failure("SCardTransmit(GET DATA)", result, error, error_cap);

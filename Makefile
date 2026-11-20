@@ -70,7 +70,8 @@ build/test_pcsc_card: tests/test_pcsc_card.c src/pcsc_card.c $(HEADERS) | build
 	$(CC) $(CPPFLAGS) $(TESTFLAGS) tests/test_pcsc_card.c src/pcsc_card.c -o $@
 
 build/test_pcsc_backend: tests/test_pcsc_backend.c src/pcsc.c src/pcsc_card.c tests/pcsc_mock/PCSC/winscard.h $(HEADERS) | build
-	$(CC) $(CPPFLAGS) -Itests/pcsc_mock $(TESTFLAGS) tests/test_pcsc_backend.c src/pcsc.c src/pcsc_card.c -o $@
+	# Simulate Apple PC/SC (int32_t/uint32_t, no LONG/DWORD typedefs).
+	$(CC) $(CPPFLAGS) -Itests/pcsc_mock -D__APPLE__ $(TESTFLAGS) tests/test_pcsc_backend.c src/pcsc.c src/pcsc_card.c -o $@
 
 build/test_sony_legacy: tests/test_sony_legacy.c src/sony_legacy.c $(TEST_COMMON) $(HEADERS) | build
 	$(CC) $(CPPFLAGS) $(TESTFLAGS) tests/test_sony_legacy.c src/sony_legacy.c $(TEST_COMMON) -o $@
@@ -112,7 +113,7 @@ dist:
 	sh scripts/release.sh
 
 formula:
-	@test -n "$(ARCHIVE)" -a -n "$(URL)" || { echo 'make formula ARCHIVE=dist/nfcidm-0.5.2.tar.gz URL=https://...' >&2; exit 1; }
+	@test -n "$(ARCHIVE)" -a -n "$(URL)" || { echo 'make formula ARCHIVE=dist/nfcidm-0.5.3.tar.gz URL=https://...' >&2; exit 1; }
 	@sh scripts/formula.sh "$(ARCHIVE)" "$(URL)"
 
 clean:
