@@ -48,8 +48,12 @@ ifeq ($(SANITIZE),1)
 TESTFLAGS += -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 endif
 
-.PHONY: all check-platform test install uninstall clean dist formula
+.PHONY: all check-platform test install uninstall clean formula bump
 all: $(EXE)
+
+# Increment the patch version automatically, or specify VERSION=X.Y.Z.
+bump:
+	@sh scripts/bump-version.sh "$(VERSION)"
 
 check-platform:
 ifeq ($(PLATFORM),macos)
@@ -109,11 +113,8 @@ install: $(EXE)
 uninstall:
 	rm -f "$(DESTDIR)$(PREFIX)/bin/$(EXE)"
 
-dist:
-	sh scripts/release.sh
-
 formula:
-	@test -n "$(ARCHIVE)" -a -n "$(URL)" || { echo 'make formula ARCHIVE=dist/nfcidm-0.5.3.tar.gz URL=https://...' >&2; exit 1; }
+	@test -n "$(ARCHIVE)" -a -n "$(URL)" || { echo 'make formula ARCHIVE=/tmp/nfcidm-vX.Y.Z.tar.gz URL=https://...' >&2; exit 1; }
 	@sh scripts/formula.sh "$(ARCHIVE)" "$(URL)"
 
 clean:

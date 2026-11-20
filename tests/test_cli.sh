@@ -22,7 +22,7 @@ test "$(cat "$work/out")" = 0123456789ABCDEF
 test ! -s "$work/err"
 test "$(wc -c <"$work/out" | tr -d ' ')" = 17
 run 0 --version
-test "$(cat "$work/out")" = 'nfcidm 0.5.3'
+test "$(cat "$work/out")" = 'nfcidm 0.5.4'
 run 64 --timeout -1
 run 64 --reader 0
 run 64 unexpected-argument

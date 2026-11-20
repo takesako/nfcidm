@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NFCIDM_VERSION "0.5.3"
+#define NFCIDM_VERSION "0.5.4"
 #define NFCIDM_MAX_READERS 64
 #define NFCIDM_ERROR_SIZE 256
 #define NFCIDM_NAME_SIZE 256

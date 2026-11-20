@@ -42,7 +42,7 @@ Legacy Sony readers on Windows require a WinUSB driver binding; follow [Windows 
 
 Run `make test` on macOS or a POSIX development host. Windows native unit tests are not configured; the shared protocols and WinUSB transport have mock tests.
 
-For local Homebrew testing on Apple Silicon, use `sh scripts/install-local.sh`. For a GitHub release, use `make dist` and [the formula generator](scripts/formula.sh).
+To install from the published Homebrew tap, run `brew install takesako/nfcidm/nfcidm`.
 
 ## Supported readers
 
