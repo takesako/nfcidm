@@ -22,16 +22,12 @@
 #include <objbase.h>
 
 #include "nfc_usb.h"
+#include "sony_usb_ids.h"
 
 #include <limits.h>
 #include <stdlib.h>
 #include <string.h>
 
-#define SONY_VID 0x054c
-#define SONY_PID_S320 0x01bb
-#define SONY_PID_S330 0x02e1
-#define SONY_PID_S380S 0x06c1
-#define SONY_PID_S380P 0x06c3
 #define MAX_DEVICE_ID 1024
 #define MAX_GUIDS 16
 
@@ -68,31 +64,20 @@ static bool identify_sony(const char *id, nfc_kind *kind, uint16_t *pid)
     const char *text = id + sizeof prefix - 1;
     if (strlen(text) < 5 || (text[4] != '\\' && text[4] != '&'))
         return false;
-    static const struct { const char *id; uint16_t pid; nfc_kind kind; } models[] = {
-        {"01BB", SONY_PID_S320, NFC_S320},
-        {"02E1", SONY_PID_S330, NFC_S330},
-        {"06C1", SONY_PID_S380S, NFC_S380},
-        {"06C3", SONY_PID_S380P, NFC_S380}
-    };
-    for (size_t i = 0; i < sizeof models / sizeof models[0]; i++) {
-        if (_strnicmp(text, models[i].id, 4) == 0) {
-            *kind = models[i].kind;
-            *pid = models[i].pid;
-            return true;
-        }
+    uint16_t value = 0;
+    for (int i = 0; i < 4; i++) {
+        unsigned char c = (unsigned char)text[i];
+        unsigned digit;
+        if (c >= '0' && c <= '9') digit = (unsigned)(c - '0');
+        else if (c >= 'a' && c <= 'f') digit = (unsigned)(c - 'a' + 10);
+        else if (c >= 'A' && c <= 'F') digit = (unsigned)(c - 'A' + 10);
+        else return false;
+        value = (uint16_t)((value << 4) | digit);
     }
-    return false;
-}
-
-static const char *reader_model(uint16_t pid)
-{
-    switch (pid) {
-    case SONY_PID_S320: return "SONY RC-S320";
-    case SONY_PID_S330: return "SONY RC-S330/360/370";
-    case SONY_PID_S380S: return "SONY RC-S380/S";
-    case SONY_PID_S380P: return "SONY RC-S380/P";
-    default: return "SONY unknown";
-    }
+    if (!nfc_sony_usb_kind(NFC_SONY_USB_VID, value, kind))
+        return false;
+    *pid = value;
+    return true;
 }
 
 static uint32_t instance_hash(const char *text)
@@ -275,10 +260,10 @@ int nfc_usb_enumerate(nfc_reader *readers, size_t capacity, size_t *count,
         nfc_reader *r = &readers[(*count)++];
         memset(r, 0, sizeof *r);
         r->kind = kind;
-        r->vid = SONY_VID;
+        r->vid = NFC_SONY_USB_VID;
         r->pid = pid;
         r->location = instance_hash(id);
-        strcpy(r->name, reader_model(pid));
+        strcpy(r->name, nfc_sony_usb_model(pid));
         strcpy(r->usb_path, path);
     }
     SetupDiDestroyDeviceInfoList(set);
@@ -286,7 +271,7 @@ int nfc_usb_enumerate(nfc_reader *readers, size_t capacity, size_t *count,
         nfc_error(error, error_cap,
             "%s (054c:%04x) detected without a usable WinUSB interface; "
             "bind WinUSB (winusb.sys) with a device-interface GUID and reconnect",
-            reader_model(missing_pid), (unsigned)missing_pid);
+            nfc_sony_usb_model(missing_pid), (unsigned)missing_pid);
     /* A missing Sony driver is not fatal to PC/SC readers such as ACR122U. */
     return NFC_OK;
 }
@@ -422,11 +407,10 @@ int nfc_usb_open(const nfc_reader *reader, bool verbose, nfc_usb *usb)
     usb->vid = reader->vid;
     usb->pid = reader->pid;
     usb->verbose = verbose;
-    bool supported = reader->vid == SONY_VID && reader->usb_path[0] &&
-        ((reader->kind == NFC_S320 && reader->pid == SONY_PID_S320) ||
-         (reader->kind == NFC_S330 && reader->pid == SONY_PID_S330) ||
-         (reader->kind == NFC_S380 && (reader->pid == SONY_PID_S380S ||
-                                       reader->pid == SONY_PID_S380P)));
+    nfc_kind kind;
+    bool supported = reader->usb_path[0] &&
+        nfc_sony_usb_kind(reader->vid, reader->pid, &kind) &&
+        reader->kind == kind;
     if (!supported) {
         nfc_error(usb->error, sizeof usb->error,
                   "WinUSB transport does not support this reader VID:PID");
@@ -482,7 +466,7 @@ int nfc_usb_open(const nfc_reader *reader, bool verbose, nfc_usb *usb)
         (reader->kind != NFC_S320 && !w->pipe_out)) {
         nfc_error(usb->error, sizeof usb->error,
                   "%s: WinUSB interface lacks required %s endpoints",
-                  reader_model(reader->pid),
+                  nfc_sony_usb_model(reader->pid),
                   reader->kind == NFC_S320 ? "interrupt IN" : "bulk IN/OUT");
         goto fail;
     }

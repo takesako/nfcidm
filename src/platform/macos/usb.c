@@ -1,5 +1,6 @@
 /* SPDX-License-Identifier: MIT */
 #include "nfc_usb.h"
+#include "sony_usb_ids.h"
 #include <CoreFoundation/CoreFoundation.h>
 #include <IOKit/IOCFPlugIn.h>
 #include <IOKit/IOKitLib.h>
@@ -56,22 +57,19 @@ static bool number_property(io_service_t service, CFStringRef key, uint32_t *out
 static bool identify(io_service_t service, nfc_reader *r)
 {
     uint32_t vid, pid, location;
-    if (!number_property(service, CFSTR("idVendor"), &vid) || vid != 0x054c ||
+    nfc_kind kind;
+    if (!number_property(service, CFSTR("idVendor"), &vid) ||
         !number_property(service, CFSTR("idProduct"), &pid) ||
-        !number_property(service, CFSTR("locationID"), &location))
+        !number_property(service, CFSTR("locationID"), &location) ||
+        vid > UINT16_MAX || pid > UINT16_MAX ||
+        !nfc_sony_usb_kind((uint16_t)vid, (uint16_t)pid, &kind))
         return false;
     memset(r, 0, sizeof *r);
-    switch (pid) {
-    case 0x01bb: r->kind = NFC_S320; break;
-    case 0x02e1: r->kind = NFC_S330; break; /* RC-S330/360/370: same USB ID */
-    case 0x06c1: case 0x06c3: r->kind = NFC_S380; break;
-    default: return false;
-    }
+    r->kind = kind;
     r->vid = (uint16_t)vid;
     r->pid = (uint16_t)pid;
     r->location = location;
-    nfc_error(r->name, sizeof r->name, "SONY %s%s", nfc_kind_name(r->kind),
-              pid == 0x06c1 ? "/S" : pid == 0x06c3 ? "/P" : "");
+    nfc_error(r->name, sizeof r->name, "%s", nfc_sony_usb_model(r->pid));
     return true;
 }
 

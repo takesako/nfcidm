@@ -66,6 +66,8 @@ const char *nfc_platform_usb_label(void)
 {
 #if defined(__APPLE__)
     return "IOKit";
+#elif defined(__linux__)
+    return "libusb";
 #else
     return "USB";
 #endif

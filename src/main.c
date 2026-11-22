@@ -24,8 +24,9 @@ static void usage(FILE *out)
           "  -v, --verbose       Write diagnostics to stderr\n"
           "  -V, --version       Print the version\n"
           "  -h, --help          Show this help\n\n"
-          "Readers: SONY RC-S320/330/360/370/380 (USB on macOS),\n"
+          "Readers: SONY RC-S320/330/360/370/380 (IOKit on macOS),\n"
           "         SONY RC-S320/330/360/370/380 (WinUSB on Windows),\n"
+          "         SONY RC-S320/330/360/370/380 (libusb on Linux),\n"
           "         SONY RC-S300 family and ACS ACR122U (PC/SC).\n",
           out);
 }

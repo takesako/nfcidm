@@ -1,6 +1,6 @@
 #!/bin/sh
 # SPDX-License-Identifier: MIT
-# Usage: make bump [VERSION=0.5.4]
+# Usage: make bump [VERSION=0.5.5]
 set -eu
 
 if [ "$#" -gt 1 ]; then
@@ -32,7 +32,7 @@ if [ "$old" = "$new" ]; then
 fi
 
 escaped_old=$(printf '%s\n' "$old" | sed 's/\./\\./g')
-for file in src/nfcidm.h tests/test_cli.sh Makefile README.md Formula/nfcidm.rb; do
+for file in src/nfcidm.h tests/test_cli.sh Makefile README.md; do
     if [ -f "$file" ] && grep -Fq "$old" "$file"; then
         tmp=$(mktemp "${TMPDIR:-/tmp}/nfcidm-bump.XXXXXX")
         sed "s/$escaped_old/$new/g" "$file" > "$tmp"
@@ -42,14 +42,6 @@ for file in src/nfcidm.h tests/test_cli.sh Makefile README.md Formula/nfcidm.rb;
     fi
 done
 
-# Homebrew detects the version from the archive URL; an explicit version
-# declaration is redundant and fails brew audit.
-if [ -f Formula/nfcidm.rb ]; then
-    tmp=$(mktemp "${TMPDIR:-/tmp}/nfcidm-bump.XXXXXX")
-    sed '/^[[:space:]]*version "[0-9][0-9.]*"[[:space:]]*$/d' Formula/nfcidm.rb > "$tmp"
-    cat "$tmp" > Formula/nfcidm.rb
-    rm -f "$tmp"
-fi
 printf 'Version: %s -> %s\n' "$old" "$new"
 printf 'Commit the changes, then create and push tag v%s.\n' "$new"
 printf 'Update the separate Homebrew tap Formula URL and SHA-256 after tagging.\n'

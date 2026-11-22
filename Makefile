@@ -27,16 +27,18 @@ EXE = nfcidm
 else ifeq ($(UNAME_S),Linux)
 PLATFORM = linux
 PLATFORM_SRC = src/platform/posix/platform.c
-USB_BACKEND = src/platform/usb_unavailable.c
+USB_BACKEND = src/platform/linux/usb_libusb.c
 PCSC_CFLAGS = $(shell pkg-config --cflags libpcsclite 2>/dev/null)
+LIBUSB_CFLAGS = $(shell pkg-config --cflags libusb-1.0 2>/dev/null)
 PCSC_LIBS = $(shell pkg-config --libs libpcsclite 2>/dev/null)
+LIBUSB_LIBS = $(shell pkg-config --libs libusb-1.0 2>/dev/null)
 EXE = nfcidm
 else
 $(error Unsupported OS: $(UNAME_S))
 endif
 endif
 
-COMMON = src/common.c src/usb.c src/frame.c
+COMMON = src/common.c src/usb.c src/frame.c src/sony_usb_ids.c
 SONY = src/sony_legacy.c src/sony_rcs380.c
 SOURCES = src/main.c $(COMMON) $(SONY) src/pcsc_card.c src/pcsc.c $(PLATFORM_SRC) $(USB_BACKEND)
 # Keep the project header named nfc_usb.h: a local usb.h would shadow MinGW <usb.h>.
@@ -48,7 +50,7 @@ ifeq ($(SANITIZE),1)
 TESTFLAGS += -O1 -g -fsanitize=address,undefined -fno-omit-frame-pointer
 endif
 
-.PHONY: all check-platform test install uninstall clean formula bump
+.PHONY: all check-platform test install uninstall clean bump
 all: $(EXE)
 
 # Increment the patch version automatically, or specify VERSION=X.Y.Z.
@@ -59,13 +61,14 @@ check-platform:
 ifeq ($(PLATFORM),macos)
 	@test "$$(uname -m)" = arm64 || { echo 'nfcidm requires Apple Silicon on macOS' >&2; exit 1; }
 else ifeq ($(PLATFORM),linux)
-	@pkg-config --exists libpcsclite || { echo 'Install pkg-config and libpcsclite-dev (plus pcscd at runtime)' >&2; exit 1; }
+	@pkg-config --exists libpcsclite || { echo 'Install pkgconf and pcsc-lite-dev (plus pcscd at runtime)' >&2; exit 1; }
+	@pkg-config --exists libusb-1.0 || { echo 'Install pkgconf and libusb-dev for Linux Sony USB support' >&2; exit 1; }
 else
 	@:
 endif
 
 $(EXE): $(SOURCES) $(HEADERS) | check-platform
-	$(CC) $(CPPFLAGS) $(PCSC_CFLAGS) $(CFLAGS) $(WARNINGS) $(LDFLAGS) $(SOURCES) $(PCSC_LIBS) -o $@
+	$(CC) $(CPPFLAGS) $(PCSC_CFLAGS) $(LIBUSB_CFLAGS) $(CFLAGS) $(WARNINGS) $(LDFLAGS) $(SOURCES) $(PCSC_LIBS) $(LIBUSB_LIBS) -o $@
 
 build:
 	mkdir -p build
@@ -84,7 +87,11 @@ build/test_sony_rcs380: tests/test_sony_rcs380.c src/sony_rcs380.c $(TEST_COMMON
 	$(CC) $(CPPFLAGS) $(TESTFLAGS) tests/test_sony_rcs380.c src/sony_rcs380.c $(TEST_COMMON) -o $@
 
 build/test_winusb_backend: tests/test_winusb_backend.c src/platform/windows/usb_winusb.c src/common.c src/usb.c $(wildcard tests/winusb_mock/*.h) $(HEADERS) | build
-	$(CC) $(CPPFLAGS) -Itests/winusb_mock $(TESTFLAGS) tests/test_winusb_backend.c src/platform/windows/usb_winusb.c src/common.c src/usb.c -o $@
+	$(CC) $(CPPFLAGS) -Itests/winusb_mock $(TESTFLAGS) tests/test_winusb_backend.c src/platform/windows/usb_winusb.c src/common.c src/usb.c src/sony_usb_ids.c -o $@
+
+# The libusb API is mocked here, so this runs without libusb-dev and hardware.
+build/test_libusb_backend: tests/test_libusb_backend.c src/platform/linux/usb_libusb.c src/sony_usb_ids.c src/common.c src/usb.c tests/libusb_mock/libusb-1.0/libusb.h $(HEADERS) | build
+	$(CC) $(CPPFLAGS) -Itests/libusb_mock $(TESTFLAGS) tests/test_libusb_backend.c src/platform/linux/usb_libusb.c src/sony_usb_ids.c src/common.c src/usb.c -o $@
 
 build/test_frame: tests/test_frame.c $(TEST_COMMON) $(HEADERS) | build
 	$(CC) $(CPPFLAGS) $(TESTFLAGS) tests/test_frame.c $(TEST_COMMON) -o $@
@@ -96,13 +103,14 @@ ifeq ($(PLATFORM),windows)
 test:
 	@echo 'Windows native unit tests are not configured yet; run make test on macOS/Linux for WinUSB mocks.' >&2
 else
-test: build/test_pcsc_card build/test_pcsc_backend build/test_sony_legacy build/test_sony_rcs380 build/test_frame build/test_winusb_backend build/test_cli
+test: build/test_pcsc_card build/test_pcsc_backend build/test_sony_legacy build/test_sony_rcs380 build/test_frame build/test_winusb_backend build/test_libusb_backend build/test_cli
 	./build/test_pcsc_card
 	./build/test_pcsc_backend
 	./build/test_sony_legacy
 	./build/test_sony_rcs380
 	./build/test_frame
 	./build/test_winusb_backend
+	./build/test_libusb_backend
 	sh tests/test_cli.sh ./build/test_cli
 endif
 
@@ -112,10 +120,6 @@ install: $(EXE)
 
 uninstall:
 	rm -f "$(DESTDIR)$(PREFIX)/bin/$(EXE)"
-
-formula:
-	@test -n "$(ARCHIVE)" -a -n "$(URL)" || { echo 'make formula ARCHIVE=/tmp/nfcidm-vX.Y.Z.tar.gz URL=https://...' >&2; exit 1; }
-	@sh scripts/formula.sh "$(ARCHIVE)" "$(URL)"
 
 clean:
 	rm -rf build nfcidm nfcidm.exe

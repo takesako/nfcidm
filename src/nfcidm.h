@@ -6,7 +6,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-#define NFCIDM_VERSION "0.5.4"
+#define NFCIDM_VERSION "0.5.5"
 #define NFCIDM_MAX_READERS 64
 #define NFCIDM_ERROR_SIZE 256
 #define NFCIDM_NAME_SIZE 256
@@ -18,7 +18,7 @@ typedef enum { NFC_S320, NFC_S330, NFC_S380, NFC_PCSC } nfc_kind;
 typedef struct {
     nfc_kind kind;
     uint16_t vid, pid;
-    uint32_t location;
+    uint32_t location; /* Linux: (USB bus << 8) | device address. */
     char name[NFCIDM_NAME_SIZE];
     char pcsc_name[NFCIDM_NAME_SIZE];
     /* Native device-interface path; used by Windows WinUSB only. */
